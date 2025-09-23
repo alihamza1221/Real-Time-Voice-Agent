@@ -94,7 +94,7 @@ const connected = ref(false)
 const joining = ref(false)
 const status = ref('')
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://config.verkaufs-plattformen.de:8090' // Vite env
+const API_BASE = import.meta.env.VITE_API_URL || 'http://20.109.0.103:8090' // Vite env
 
 // Helper function to format part names
 function formatPartName(part) {
