@@ -1,0 +1,9 @@
+livekit-agents
+livekit-plugins-openai
+livekit-plugins-silero
+livekit-plugins-noise-cancellation
+livekit-plugins-turn-detector
+python-dotenv
+fastapi
+uvicorn
+livekit-plugins-deepgram
