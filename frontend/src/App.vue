@@ -207,6 +207,16 @@ async function startVoiceAgent () {
       }
     })
 
+
+    console.log("remote participants : ", room.remoteParticipants);
+    room.remoteParticipants?.forEach((participant) => {
+  participant.trackPublications.forEach((publication) => {
+    publication.setSubscribed(true);
+  });
+});
+
+
+
   joining.value = false
   status.value = "Connected. You can start speaking now."
   } catch (e) {
