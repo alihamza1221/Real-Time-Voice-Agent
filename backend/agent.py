@@ -44,7 +44,7 @@ class CollectConsent(AgentTask[bool]):
         )
 
     async def on_enter(self) -> None:
-        print("Collecting consent...")
+        print("2: Collecting consent...")
         await self.session.generate_reply(instructions="First Ask for voice assistant consent and get a clear yes or no answer. Make sure selection is clear")
 
     @function_tool
@@ -67,15 +67,18 @@ class ProductConfigurationAssistant(Agent):
     async def on_enter(self) -> None:
         # user_data: ProductData = self.session.userdata
         # chat_ctx = self.chat_ctx.copy()
+        print("1: Will call collect consent now...")
 
         if await CollectConsent():
             await self.session.generate_reply(instructions=SESSION_INSTRUCTIONS)
+            print("3: Consent granted.")
         else:
+            print("3: Consent denied. Ending session.")
             await self.session.generate_reply(instructions="Inform the user that you are unable to proceed and will end the call.")
             job_ctx = get_job_context()
 
             try:
-                print("Deleting room:", job_ctx.room.name)
+                print("last : Deleting room:", job_ctx.room.name)
                 await job_ctx.api.room.delete_room(api.DeleteRoomRequest(room=job_ctx.room.name))
             except Exception as e:
                 print("Error deleting room:", e)
