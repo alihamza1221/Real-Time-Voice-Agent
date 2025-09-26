@@ -178,6 +178,8 @@ async function startVoiceAgent () {
       } catch (_) {}
     })
 
+
+    console.log('Connecting to LiveKit', { livekitUrl, roomName , token})
     await r.connect(livekitUrl, token) // Connect to room with token [13]
     connected.value = true
     status.value = 'Connected. Publishing mic...'
@@ -197,6 +199,7 @@ async function startVoiceAgent () {
 
     // Auto-play agent audio when the agent publishes TTS
     r.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+      console.log('TrackSubscribed', { track, pub, participant })
       if (track.kind === 'audio') {
         const el = document.createElement('audio')
         el.autoplay = true
@@ -205,6 +208,7 @@ async function startVoiceAgent () {
     })
 
   joining.value = false
+  status.value = "Connected. You can start speaking now."
   } catch (e) {
     status.value = `Failed: ${e.message || e}`
     joining.value = false
