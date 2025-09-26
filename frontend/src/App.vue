@@ -47,10 +47,11 @@
       <div class="actions">
         <button 
           class="btn btn-primary" 
-          :disabled="joining || connected" 
+          :disabled="joining || connected || !isClient" 
           @click="startVoiceAgent">
           <span v-if="joining" class="btn-spinner"></span>
-          <span v-if="!joining && !connected">🎤 Start Voice Agent</span>
+          <span v-if="!joining && !connected && isClient">🎤 Start Voice Agent</span>
+          <span v-if="!joining && !connected && !isClient">❌ Browser Required</span>
           <span v-if="connected">✅ Connected</span>
         </button>
         <button 
@@ -70,7 +71,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Room, RoomEvent, createLocalAudioTrack } from 'livekit-client'
 
 // Example product JSON (also sent to backend as metadata for the agent)
@@ -93,8 +94,17 @@ const room = ref(null)
 const connected = ref(false)
 const joining = ref(false)
 const status = ref('')
+const isClient = ref(false)
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://20.109.0.103:8090' // Vite env
+
+// Check if we're in a browser environment
+onMounted(() => {
+  isClient.value = typeof window !== 'undefined' && typeof navigator !== 'undefined'
+  if (!isClient.value) {
+    status.value = 'Browser environment required'
+  }
+})
 
 // Helper function to format part names
 function formatPartName(part) {
@@ -110,6 +120,18 @@ function getStatusClass() {
 }
 
 async function startVoiceAgent () {
+  // Check browser environment first
+  if (!isClient.value) {
+    status.value = 'Error: Browser environment required'
+    return
+  }
+
+  // Check for getUserMedia support
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.value = 'Error: Microphone access not supported'
+    return
+  }
+
   try {
     joining.value = true
     status.value = 'Requesting token...'
@@ -160,6 +182,11 @@ async function startVoiceAgent () {
     connected.value = true
     status.value = 'Connected. Publishing mic...'
 
+    // Check again before creating audio track
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Microphone access not available')
+    }
+
     // Publish mic track with basic processing [11]
     const mic = await createLocalAudioTrack({
       echoCancellation: true,
@@ -179,8 +206,9 @@ async function startVoiceAgent () {
 
   joining.value = false
   } catch (e) {
-    status.value = `Failed: ${e}`
+    status.value = `Failed: ${e.message || e}`
     joining.value = false
+    console.error('Voice agent error:', e)
   }
 }
 
