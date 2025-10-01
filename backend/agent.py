@@ -19,7 +19,6 @@ from livekit.plugins import (
     noise_cancellation,
 )
 
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from promts import SESSION_INSTRUCTIONS, ASSISTANT_INSTRUCTIONS
 from constants import agent_name
 from livekit.agents import AgentTask, function_tool
@@ -146,6 +145,35 @@ class ProductConfigurationAssistant(Agent):
         except Exception:
             pass
         return f"Thank you for confirming your product configuration: {userdata.product}. We will proceed with the next steps."
+    @function_tool()
+    async def close_voice_mode(self, context: RunContext_T) -> str | tuple[Agent, str]:
+        """Called when the user wants to close the voice mode at any point."""
+        userdata = context.userdata
+        
+        print(userdata.product)
+        try:
+            payload = {
+                "type": "config:close_voice_mode",
+                "items_configured": userdata.product,
+            }
+            
+            await context.session._room_io._room.local_participant.publish_data(
+                json.dumps(payload).encode("utf-8"),
+                reliable=True,
+                topic="config",
+            )
+            
+            job_ctx = get_job_context()
+
+            try:
+                print("last : Deleting room:", job_ctx.room.name)
+                await job_ctx.api.room.delete_room(api.DeleteRoomRequest(room=job_ctx.room.name))
+            except Exception as e:
+                print("Error deleting room:", e)
+        except Exception:
+            print("Error in close_voice_mode No room to delete")
+            pass
+        return f"Thank you will end the call now."
     
 
 
@@ -159,7 +187,7 @@ async def entrypoint(ctx: JobContext):
               "legs": ["10m", "100m"],
               "space_around": ["10m", "80m"]
             },
-            "LANGUAGE": "German"
+            "LANGUAGE": "English"
         }"""
 
     print("Received Job Metadata:", metadata)
