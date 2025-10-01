@@ -81,7 +81,8 @@ const product = ref({
     'table_top': ['15m', '14m', '100m'],
     'legs': ['10m', '100m'],
     'space_around': ['10m', '80m']
-  }
+  },
+  LANGUAGE: "German"
 })
 
 const selected = ref({
@@ -96,7 +97,10 @@ const joining = ref(false)
 const status = ref('')
 const isClient = ref(false)
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://20.109.0.103:8090' // Vite env
+// const API_BASE = import.meta.env.VITE_API_URL || 'http://20.109.0.103:8090' // Vite env
+
+//http://config.verkaufs-plattformen.de:8090
+const API_BASE = import.meta.env.VITE_API_URL || 'http://config.verkaufs-plattformen.de:8090' // Vite env
 
 // Check if we're in a browser environment
 onMounted(() => {
@@ -178,9 +182,20 @@ async function startVoiceAgent () {
       } catch (_) {}
     })
 
+    r.on(RoomEvent.ParticipantConnected, (p) => {
+  console.log('remote joined', p.identity)
+})
+r.on(RoomEvent.ParticipantDisconnected, (p) => {
+  console.log('remote left', p.identity)
+})
+room.value.remoteParticipants.forEach((p, id) => {             // Map iteration
+  console.log('remote', id, p.identity)
+})
 
+console.log("remote participants : ", room.value.remoteParticipants);
     console.log('Connecting to LiveKit', { livekitUrl, roomName , token})
-    await r.connect(livekitUrl, token) // Connect to room with token [13]
+  
+
     connected.value = true
     status.value = 'Connected. Publishing mic...'
 
@@ -190,6 +205,52 @@ async function startVoiceAgent () {
     }
 
     // Publish mic track with basic processing [11]
+
+    // Auto-play agent audio when the agent publishes TTS
+    r.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+      console.log('TrackSubscribed', { track, pub, participant })
+      if (track.kind === 'audio') {
+        const el = document.createElement('audio')
+        el.autoplay = true,
+
+        track.attach(el)
+      }
+    })
+
+    if (!r.canPlayAudio) {
+  console.log("started audio")
+}
+r.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+  if (!r.canPlayAudio) {
+    console.log("Audio playback requires user interaction");
+    // show a button and call r.startAudio() on click
+  }
+});
+
+
+
+    r.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
+      console.log('**(*(*(*((*(*TrackUnsubscribed', { track, pub, participant })
+      
+    })
+
+    console.log('local', room.value.localParticipant)              // OK after connect
+    console.log("remote participants : ", room.value.remoteParticipants);
+
+
+
+    // console.log("remote participants : ", room.remoteParticipants);
+    // console.log("local participants : ", room.localParticipant);
+
+    // room.remoteParticipants?.forEach((participant) => {
+    //   participant.trackPublications.forEach((publication) => {
+    //     publication.setSubscribed(true);
+    //   });
+    // });
+
+
+    await r.connect(livekitUrl, token) // Connect to room with token [13]
+    await r.startAudio(); // must be within a user gesture
     const mic = await createLocalAudioTrack({
       echoCancellation: true,
       noiseSuppression: true,
@@ -197,26 +258,17 @@ async function startVoiceAgent () {
     })
     await r.localParticipant.publishTrack(mic)
 
-    // Auto-play agent audio when the agent publishes TTS
-    r.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
-      console.log('TrackSubscribed', { track, pub, participant })
-      if (track.kind === 'audio') {
-        const el = document.createElement('audio')
-        el.autoplay = true
-        track.attach(el)
-      }
-    })
-
-
-    console.log("remote participants : ", room.remoteParticipants);
-    room.remoteParticipants?.forEach((participant) => {
-  participant.trackPublications.forEach((publication) => {
-    publication.setSubscribed(true);
+    r.remoteParticipants.forEach((p) => {
+  p.audioTrackPublications.forEach((pub) => {
+    if (!pub.isSubscribed) pub.setSubscribed(true);
+    const tr = pub.audioTrack;
+    if (tr) {
+      const el = new Audio();
+      el.autoplay = true;
+      tr.attach(el);
+    }
   });
 });
-
-
-
   joining.value = false
   status.value = "Connected. You can start speaking now."
   } catch (e) {

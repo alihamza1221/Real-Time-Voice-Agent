@@ -1,10 +1,10 @@
 import json
 from dotenv import load_dotenv
+from importlib_metadata import metadata
 from livekit.agents import (
     AgentSession,
     Agent,
     AutoSubscribe,
-    llm,
     RoomInputOptions,
     JobContext,
     JobProcess,
@@ -17,7 +17,6 @@ from livekit.plugins import (
     openai,
     silero,
     noise_cancellation,
-    deepgram
 )
 
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
@@ -37,40 +36,51 @@ class ProductData:
 RunContext_T = RunContext[ProductData]
 
 class CollectConsent(AgentTask[bool]):
-    def __init__(self):
+    def __init__(self, metadata: str):
+        self.current_instructions = """Asking for voice consent If want voice mode or not. 
+            - Avoid Background noise un recognized words.
+            - The {LANGUAGE} for conversation is provided in DATA below.
+            - ONLY use LANGUAGE provided in DATA below.
+            - Make sure to get a clear answer for consent yes/no. 
+        # PRODUCT DATA : """ + metadata
+
         super().__init__(
-            instructions="Asking for voice assistant consent If want to chat on voice mode or not make sure to get a clear yes or no answer.",
+            instructions=self.current_instructions,
             llm=openai.realtime.RealtimeModel(voice="coral", temperature=0.6)
         )
 
     async def on_enter(self) -> None:
         print("2: Collecting consent...")
-        await self.session.generate_reply(instructions="First Ask for voice assistant consent and get a clear yes or no answer. Make sure selection is clear")
+        await self.session.generate_reply(instructions=self.current_instructions)
 
     @function_tool
     async def consent_given(self) -> None:
-        """Use this when the user gives consent to assist in product configuration. If user wants do configuration"""
+        """Use this when the user gives consent to assist with voice mode. If user wants the voice mode"""
         self.complete(True)
 
     @function_tool
     async def consent_denied(self) -> None:
-        """Use this when the user denies consent to assist in product configuration or say no to continue."""
+        """Use this when the user denies consent to assist with voice mode or say no to continue."""
         self.complete(False)
 
 
-class ProductConfigurationAssistant(Agent):
-    def __init__(self, ASSISTANT_INSTRUCTIONS: str) -> None:
-        super().__init__(instructions=ASSISTANT_INSTRUCTIONS,
+class ProductConfigurationAssistant(Agent): 
+    def __init__(self, prompt: str, current_session_instructions: str, metadata: str) -> None:
+        super().__init__(instructions=prompt,
                          llm=openai.realtime.RealtimeModel(voice="coral",
                                                            temperature=0.6))
-
+        self.current_session_instructions = current_session_instructions
+        self.metadata = metadata
+        
     async def on_enter(self) -> None:
         # user_data: ProductData = self.session.userdata
         # chat_ctx = self.chat_ctx.copy()
         print("1: Will call collect consent now...")
 
-        if await CollectConsent():
-            await self.session.generate_reply(instructions=SESSION_INSTRUCTIONS)
+        if await CollectConsent(self.metadata):
+            await self.session.generate_reply(instructions=self.current_session_instructions)
+            print("session instructions:", self.current_session_instructions)
+
             print("3: Consent granted.")
         else:
             print("3: Consent denied. Ending session.")
@@ -141,7 +151,18 @@ class ProductConfigurationAssistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
-    print("Job Metadata:", metadata)
+    if metadata is None or metadata.strip() == "":
+        metadata = """{
+            "name": "Wood Table",
+            "parts": {
+              "table_top": ["15m", "14m", "100m"],
+              "legs": ["10m", "100m"],
+              "space_around": ["10m", "80m"]
+            },
+            "LANGUAGE": "German"
+        }"""
+
+    print("Received Job Metadata:", metadata)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     await ctx.wait_for_participant()
 
@@ -154,18 +175,24 @@ async def entrypoint(ctx: JobContext):
         #    smart_format=True
         #),
         #turn_detection=MultilingualModel(),
+        #turn_detection="vad",
         #tts=openai.TTS(voice="coral", speed=1.2),
+        
     )
     prompt = ASSISTANT_INSTRUCTIONS + metadata
+    
+    print("Final Prompt:", prompt)
+    current_session_instructions = SESSION_INSTRUCTIONS + metadata
+    
     await session.start(
         
         room=ctx.room,
-        agent=ProductConfigurationAssistant(prompt),
+        agent=ProductConfigurationAssistant(prompt, current_session_instructions, metadata=metadata),
         room_input_options=RoomInputOptions(
             noise_cancellation=noise_cancellation.BVC(),
             video_enabled=False,
             pre_connect_audio=True,
-            close_on_disconnect=False,
+            close_on_disconnect=True,
         ),
         # room_output_options=RoomInputOptions(
             
@@ -178,4 +205,4 @@ def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm, initialize_process_timeout=200, agent_name=agent_name))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm, initialize_process_timeout=500, agent_name=agent_name))
