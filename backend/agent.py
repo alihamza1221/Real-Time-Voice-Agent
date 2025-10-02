@@ -147,7 +147,7 @@ class ProductConfigurationAssistant(Agent):
         return f"Thank you for confirming your product configuration: {userdata.product}. We will proceed with the next steps."
     @function_tool()
     async def close_voice_mode(self, context: RunContext_T) -> str | tuple[Agent, str]:
-        """Called when the user wants to close the voice mode at any point."""
+        """Called when the user wants to close the voice mode at any point or say close or stop."""
         userdata = context.userdata
         
         print(userdata.product)
@@ -179,17 +179,7 @@ class ProductConfigurationAssistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
-    if metadata is None or metadata.strip() == "":
-        metadata = """{
-            "name": "Wood Table",
-            "parts": {
-              "table_top": ["15m", "14m", "100m"],
-              "legs": ["10m", "100m"],
-              "space_around": ["10m", "80m"]
-            },
-            "LANGUAGE": "English"
-        }"""
-
+    
     print("Received Job Metadata:", metadata)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     await ctx.wait_for_participant()
