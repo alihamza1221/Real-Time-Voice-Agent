@@ -28,9 +28,24 @@ import pydantic
 load_dotenv()
 
 
+
+class ConfiguredPart(pydantic.BaseModel):
+    uniqueId: str
+    name: str
+    value: Optional[str] = None
+    title: Optional[str] = None
+
 @dataclass
 class ProductData:
-    product: Optional[list[str]] = None
+    product: Optional[dict] = field(default_factory=lambda: {
+        "name": None,
+        "parts": [],
+        "selected_options": [],
+        "language": None
+    })
+    
+
+
 
 RunContext_T = RunContext[ProductData]
 
@@ -67,7 +82,7 @@ class ProductConfigurationAssistant(Agent):
     def __init__(self, prompt: str, current_session_instructions: str, metadata: str) -> None:
         super().__init__(instructions=prompt,
                          llm=openai.realtime.RealtimeModel(voice="coral",
-                                                           temperature=0.6))
+                                                           temperature=0.))
         self.current_session_instructions = current_session_instructions
         self.metadata = metadata
         
@@ -98,19 +113,23 @@ class ProductConfigurationAssistant(Agent):
     @function_tool
     async def update_product_configuration(
         self,
-        items_configured: Annotated[list[str], pydantic.Field(description="The updated configuration of the given product aligned with provided json data of product")],
+        items_configured: Annotated[ConfiguredPart, pydantic.Field(description="The specific part being configured. Must include uniqueId, name, and the selected value.")],
         context: RunContext_T,
     ) -> str:
-        """Called when the user or agent create or update the product configuration. Will be called each time the update happens in product configuration"""
+        """Will be called each time the update happens in any part of product configuration. Called on each part configuration."""
         userdata = context.userdata
-        userdata.product = items_configured
+        if not userdata.product.get("selected_options"):
+            userdata.product["selected_options"] = []
+
+        userdata.product["selected_options"].append(items_configured.model_dump())
 
         try:
             payload = {
                 "type": "config:update",
-                "items_configured": items_configured,
+                "items_configured": items_configured.model_dump(),
             }
             
+            print("_________Publishing payload:", payload)
             # publish as reliable data with a topic to make filtering easy
             await context.session._room_io._room.local_participant.publish_data(
                 json.dumps(payload).encode("utf-8"),
@@ -126,11 +145,11 @@ class ProductConfigurationAssistant(Agent):
 
     @function_tool()
     async def confirm_configuration(self, context: RunContext_T) -> str | tuple[Agent, str]:
-        """Called when the user confirms the product configuration."""
+        """Called when the user confirms the product configuration. or end the configuration."""
         userdata = context.userdata
         if not userdata.product:
             return "No product configuration found. Please configure your product first."
-        print(userdata.product)
+        print("_______Found Config: " , userdata.product)
         try:
             payload = {
                 "type": "config:complete",
@@ -180,10 +199,21 @@ class ProductConfigurationAssistant(Agent):
 async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
     
+    if not metadata or metadata.strip() == "":
+        metadata = """
+{
+name: 'Wood Table',
+parts: [
+    {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Stärke","value":["16 mm","19 mm","25 mm","8 mm"]},{"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Maserungsrichtung ","value":["Vertikal","Horizontal"]},{"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Seitenauswahl der Kanten :","value":["oben","rechts","unten","links"]},{"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Kantenbearbeitung:","value":["Ohne","Weiß Hochglanz","Schwarz Hochglanz","Ahorn Natur","Alu Geschliffen","Anthrazit","Atollblau","Beige","Beton dunkel","Beton hell","Eiche Salzburg","Eierschale","Esche Taormina Vogue","Grau","Hellgrau","Kernapfel","Kirsche Acco","Limone","Lipstick","Murnau Ahorn","Niagara Eiche hell","Nussbaum","Onyx","Rose","Samerbergbuche","Schiefer","Schwarz","Seablue","Silber","Sonoma Eiche","Taubenblau","Türkis","Walnuss Venedig","Weiss","Wenge Classic","Marmor Weiss","Marmor Dunkel Grau","Marmor Hell Grau","Swiss Elm Kalt","Aloe Green","Dive Blue","Efeu","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Marineblau","Olive","Pistazien Grün","Astfichte","Cappuccino","Cashmere","Coco Tweed Creme","Fichte Weiß","Frontweiss","MellowPine White","Stonetex Black"]},{"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Steckdosenbohrungen","value":["Keine","Eine","Zwei","Drei","Vier","Fünf"]},{"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Lochreihen für Regalbretter","value":["Keine","lange Seite - 2 Reihen für Regalbretter - pro Platte","kurze Seite - 2 Reihen für Regalbretter - pro Platte"]},{"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Scharniere inkl. Bohrung","value":["Keine","Eckanschlag 2 Bohrungen und 2 Scharniere","Mittelwand 2 Bohrungen und 2 Scharniere","Einliegend 2 Bohrungen und 2 Scharniere","Eckanschlag 3 Bohrungen und 3 Scharniere","Mittelwand 3 Bohrungen und 3 Scharniere","Einliegend 3 Bohrungen und 3 Scharniere","Eckanschlag 4 Bohrungen und 4 Scharniere","Mittelwand 4 Bohrungen und 4 Scharniere","Einliegend 4 Bohrungen und 4 Scharniere","Eckanschlag 5 Bohrungen und 5 Scharniere","Mittelwand 5 Bohrungen und 5 Scharniere","Einliegend 5 Bohrungen und 5 Scharniere"]}],
+LANGUAGE: 'German'
+})
+        """
+
     print("Received Job Metadata:", metadata)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     await ctx.wait_for_participant()
 
+    
     productData = ProductData()
     session = AgentSession[ProductData](
         userdata=productData,
@@ -224,3 +254,28 @@ def prewarm(proc: JobProcess):
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm, initialize_process_timeout=500, agent_name=agent_name))
+    
+    
+    
+"""
+
+[
+
+{"id":0,"name":"platte_thickness","titel":"Stärke",
+
+"value":["16 mm","19 mm","25 mm","8 mm"]},
+"features" []},
+
+
+
+{"id":0,"name":"platte_thickness","titel":"Stärke",
+
+"value":["16 mm","19 mm","25 mm","8 mm"]},
+"features" []},
+[{"id":0,"name":"platte_thickness","titel":"Stärke",
+
+"value":["16 mm","19 mm","25 mm","8 mm"]},
+"features" []},
+{"id":0,"name":"platte_thickness","titel":"Stärke"},]
+
+"""

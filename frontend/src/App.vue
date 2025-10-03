@@ -21,20 +21,21 @@
       </div>
       
       <div class="parts-grid">
-        <div v-for="(opts, part) in product.parts" :key="part" class="part-card">
+        <div v-for="part in product.parts" :key="part.name" class="part-card">
           <div class="part-header">
-            <h4 class="part-name">{{ formatPartName(part) }}</h4>
-            <div v-if="selected[part]" class="selected-indicator">
+            <h4 class="part-name">{{ part.titel || part.name }}</h4>
+            <div v-if="selected[part.name]" class="selected-indicator">
               <span class="selected-label">Selected:</span>
-              <span class="selected-value">{{ selected[part] }}</span>
+              <span class="selected-value">{{ selected[part.name] }}</span>
             </div>
           </div>
           
           <div class="options-container">
             <div class="options-label">Available options:</div>
             <div class="options-grid">
-              <div v-for="opt in opts" :key="opt"
-                   :class="['option-chip', selected[part] === opt ? 'option-selected' : 'option-available']">
+              <div v-for="opt in part.value" :key="opt"
+                   :class="['option-chip', selected[part.name] === opt ? 'option-selected' : 'option-available']"
+                   @click="selectOption(part.name, opt)">
                 {{ opt }}
               </div>
             </div>
@@ -75,21 +76,19 @@ import { ref, onMounted } from 'vue'
 import { Room, RoomEvent, createLocalAudioTrack } from 'livekit-client'
 
 // Example product JSON (also sent to backend as metadata for the agent)
-const product = ref({
-  name: 'Wood Table',
-  parts: {
-    'table_top': ['15m', '14m', '100m'],
-    'legs': ['10m', '100m'],
-    'space_around': ['10m', '80m']
-  },
-  LANGUAGE: "German"
-})
+const product = ref(
+  
+{
+name: 'Wood Table',
+parts: [
+  {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Stärke","value":["16 mm","19 mm","25 mm","8 mm"]},{"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Maserungsrichtung ","value":["Vertikal","Horizontal"]},{"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Seitenauswahl der Kanten :","value":["oben","rechts","unten","links"]},{"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Kantenbearbeitung:","value":["Ohne","Weiß Hochglanz","Schwarz Hochglanz","Ahorn Natur","Alu Geschliffen","Anthrazit","Atollblau","Beige","Beton dunkel","Beton hell","Eiche Salzburg","Eierschale","Esche Taormina Vogue","Grau","Hellgrau","Kernapfel","Kirsche Acco","Limone","Lipstick","Murnau Ahorn","Niagara Eiche hell","Nussbaum","Onyx","Rose","Samerbergbuche","Schiefer","Schwarz","Seablue","Silber","Sonoma Eiche","Taubenblau","Türkis","Walnuss Venedig","Weiss","Wenge Classic","Marmor Weiss","Marmor Dunkel Grau","Marmor Hell Grau","Swiss Elm Kalt","Aloe Green","Dive Blue","Efeu","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Marineblau","Olive","Pistazien Grün","Astfichte","Cappuccino","Cashmere","Coco Tweed Creme","Fichte Weiß","Frontweiss","MellowPine White","Stonetex Black"]},{"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Steckdosenbohrungen","value":["Keine","Eine","Zwei","Drei","Vier","Fünf"]},{"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Lochreihen für Regalbretter","value":["Keine","lange Seite - 2 Reihen für Regalbretter - pro Platte","kurze Seite - 2 Reihen für Regalbretter - pro Platte"]},{"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Scharniere inkl. Bohrung","value":["Keine","Eckanschlag 2 Bohrungen und 2 Scharniere","Mittelwand 2 Bohrungen und 2 Scharniere","Einliegend 2 Bohrungen und 2 Scharniere","Eckanschlag 3 Bohrungen und 3 Scharniere","Mittelwand 3 Bohrungen und 3 Scharniere","Einliegend 3 Bohrungen und 3 Scharniere","Eckanschlag 4 Bohrungen und 4 Scharniere","Mittelwand 4 Bohrungen und 4 Scharniere","Einliegend 4 Bohrungen und 4 Scharniere","Eckanschlag 5 Bohrungen und 5 Scharniere","Mittelwand 5 Bohrungen und 5 Scharniere","Einliegend 5 Bohrungen und 5 Scharniere"]}],
+LANGUAGE: 'Egnlish'
+}
+)
 
-const selected = ref({
-  'table_top': null,
-  'legs': null,
-  'space_around': null
-})
+
+
+const selected = ref({})
 
 const room = ref(null)
 const connected = ref(false)
@@ -100,7 +99,21 @@ const isClient = ref(false)
 // const API_BASE = import.meta.env.VITE_API_URL || 'http://20.109.0.103:8090' // Vite env
 
 //http://config.verkaufs-plattformen.de:8090
-const API_BASE = import.meta.env.VITE_API_URL || 'http://config.verkaufs-plattformen.de:8090' // Vite env
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8090' 
+onMounted(() => {
+  // Check if we're in a browser environment
+  isClient.value = typeof window !== 'undefined' && typeof navigator !== 'undefined'
+  if (!isClient.value) {
+    status.value = 'Browser environment required'
+  }
+
+  // Initialize selected for each part
+  product.value.parts.forEach(part => {
+    if (!(part.name in selected.value)) {
+      selected.value[part.name] = null
+    }
+  })
+})
 
 // Check if we're in a browser environment
 onMounted(() => {
@@ -110,10 +123,6 @@ onMounted(() => {
   }
 })
 
-// Helper function to format part names
-function formatPartName(part) {
-  return part.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-}
 
 // Helper function to get status indicator class
 function getStatusClass() {
@@ -121,6 +130,11 @@ function getStatusClass() {
   if (joining.value) return 'status-connecting'
   if (status.value.includes('Failed')) return 'status-error'
   return 'status-idle'
+}
+
+// Add method to select option
+function selectOption(partName, opt) {
+  selected.value = { ...selected.value, [partName]: opt }
 }
 
 async function startVoiceAgent () {
@@ -155,32 +169,38 @@ async function startVoiceAgent () {
     const r = new Room()
     room.value = r
 
-   // Replace your DataReceived handler with this version
-    r.on(RoomEvent.DataReceived, (payload, participant, topic) => {
-      try {
-        const msg = JSON.parse(new TextDecoder().decode(payload))
-        console.log('DataReceived', { topic, msg })
-        if (msg?.type === 'config:update') {
-          // clone to force reactivity on ref objects
-          const next = { ...selected.value }  // ensure change detection [vue3]
-          for (const entry of msg.items_configured || []) {
-            const [rawPart, rawVal] = String(entry).split(':')
-            const part = (rawPart || '').trim()
-            const valRaw = (rawVal || '').trim()
-            const opts = product.value?.parts?.[part] || []
-            //console.log('Checking options', { part, valRaw, opts })
-            const val = opts.find(o => o.toLowerCase() === valRaw.toLowerCase()) ?? valRaw
-            console.log('Mapped value', { part, valRaw, val })
-            if (part in next) {
-              console.log("found match", { part, val })
-              next[part] = val
-              }
-          }
-          selected.value = next
-          status.value = 'Updated by voice'
+r.on(RoomEvent.DataReceived, (payload, participant, topic) => {
+  console.log('____DataReceived event triggered____');
+  try {
+    console.log('DataReceived raw', { topic, payload, participant })  
+    const msg = JSON.parse(new TextDecoder().decode(payload))
+    console.log('DataReceived parsed', { topic, msg })
+    
+    if (msg?.type === 'config:update') {
+      const next = { ...selected.value }
+      
+      // Handle both single object and array formats
+      const items = Array.isArray(msg.items_configured) 
+        ? msg.items_configured 
+        : [msg.items_configured]
+      
+      console.log('Processing items:', items)
+      
+      for (const item of items) {
+        if (item?.name && item?.value) {
+          console.log(`Setting ${item.name} = ${item.value}`)
+          next[item.name] = item.value
         }
-      } catch (_) {}
-    })
+      }
+      
+      selected.value = next
+      status.value = `Updated by voice: ${items.map(i => i.name).join(', ')}`
+      console.log('Updated selected:', selected.value)
+    }
+  } catch (e) {
+    console.error('DataReceived parse error:', e)
+  }
+})
 
     r.on(RoomEvent.ParticipantConnected, (p) => {
   console.log('remote joined', p.identity)
