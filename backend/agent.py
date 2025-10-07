@@ -1,3 +1,4 @@
+import asyncio
 import json
 from dotenv import load_dotenv
 from importlib_metadata import metadata
@@ -50,13 +51,13 @@ class ProductData:
 RunContext_T = RunContext[ProductData]
 
 class CollectConsent(AgentTask[bool]):
-    def __init__(self, metadata: str):
+    def __init__(self, metadata: any):
         self.current_instructions = """Asking for voice consent If want voice mode or not. 
             - Avoid Background noise un recognized words.
             - The {LANGUAGE} for conversation is provided in DATA below.
             - ONLY use LANGUAGE provided in DATA below.
             - Make sure to get a clear answer for consent yes/no. 
-        # PRODUCT DATA : """ + metadata
+        # PRODUCT DATA : """ + json.dumps(metadata)
 
         super().__init__(
             instructions=self.current_instructions,
@@ -79,7 +80,7 @@ class CollectConsent(AgentTask[bool]):
 
 
 class ProductConfigurationAssistant(Agent): 
-    def __init__(self, prompt: str, current_session_instructions: str, metadata: str) -> None:
+    def __init__(self, prompt: str, current_session_instructions: str, metadata: any) -> None:
         super().__init__(instructions=prompt,
                          llm=openai.realtime.RealtimeModel(voice="coral",
                                                            temperature=0.))
@@ -89,6 +90,13 @@ class ProductConfigurationAssistant(Agent):
     async def on_enter(self) -> None:
         # user_data: ProductData = self.session.userdata
         # chat_ctx = self.chat_ctx.copy()
+        #self.session._room_io._room.metadata;
+        
+        # if not self.session._room_io or not self.session._room_io._room:
+        #     print("Room IO or Room is not available.")
+        # else:
+            #self.session._room_io._room.on("data_received", self._on_data_received)
+
         print("1: Will call collect consent now...")
 
         if await CollectConsent(self.metadata):
@@ -109,7 +117,23 @@ class ProductConfigurationAssistant(Agent):
     # async def on_user_turn_completed(self, chat_ctx, new_message):
     #     if new_message.text_content:
     #         print(f"User Transcript: {new_message.text_content}")
-   
+    
+    def _on_data_received(self, data):
+        # Convert to string and parse JSON if applicable
+        asyncio.create_task(self.process_incoming_data(data))
+
+    async def process_incoming_data(self, data):
+        try:
+            message_str = data.decode("utf-8")
+            message_json = json.loads(message_str)
+            print("Received data message:", message_json)
+        except Exception as e:
+            print("Failed to decode/process incoming data:", e)
+            return
+
+        print(f"Data received on topic {data.topic}:'{data}'")
+
+
     @function_tool
     async def update_product_configuration(
         self,
@@ -139,7 +163,6 @@ class ProductConfigurationAssistant(Agent):
         except Exception:
             pass
             
-
         return f"The product configuration is updated to {items_configured}"
     
 
@@ -147,8 +170,8 @@ class ProductConfigurationAssistant(Agent):
     async def confirm_configuration(self, context: RunContext_T) -> str | tuple[Agent, str]:
         """Called when the user confirms the product configuration. or end the configuration."""
         userdata = context.userdata
-        if not userdata.product:
-            return "No product configuration found. Please configure your product first."
+        # if not userdata.product:
+        #     return "No product configuration found. Please configure your product first."
         print("_______Found Config: " , userdata.product)
         try:
             payload = {
@@ -198,16 +221,17 @@ class ProductConfigurationAssistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
-    
-    if not metadata or metadata.strip() == "":
-        metadata = """
-{
-name: 'Wood Table',
-parts: [
-    {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Stärke","value":["16 mm","19 mm","25 mm","8 mm"]},{"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Maserungsrichtung ","value":["Vertikal","Horizontal"]},{"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Seitenauswahl der Kanten :","value":["oben","rechts","unten","links"]},{"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Kantenbearbeitung:","value":["Ohne","Weiß Hochglanz","Schwarz Hochglanz","Ahorn Natur","Alu Geschliffen","Anthrazit","Atollblau","Beige","Beton dunkel","Beton hell","Eiche Salzburg","Eierschale","Esche Taormina Vogue","Grau","Hellgrau","Kernapfel","Kirsche Acco","Limone","Lipstick","Murnau Ahorn","Niagara Eiche hell","Nussbaum","Onyx","Rose","Samerbergbuche","Schiefer","Schwarz","Seablue","Silber","Sonoma Eiche","Taubenblau","Türkis","Walnuss Venedig","Weiss","Wenge Classic","Marmor Weiss","Marmor Dunkel Grau","Marmor Hell Grau","Swiss Elm Kalt","Aloe Green","Dive Blue","Efeu","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Marineblau","Olive","Pistazien Grün","Astfichte","Cappuccino","Cashmere","Coco Tweed Creme","Fichte Weiß","Frontweiss","MellowPine White","Stonetex Black"]},{"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Steckdosenbohrungen","value":["Keine","Eine","Zwei","Drei","Vier","Fünf"]},{"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Lochreihen für Regalbretter","value":["Keine","lange Seite - 2 Reihen für Regalbretter - pro Platte","kurze Seite - 2 Reihen für Regalbretter - pro Platte"]},{"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Scharniere inkl. Bohrung","value":["Keine","Eckanschlag 2 Bohrungen und 2 Scharniere","Mittelwand 2 Bohrungen und 2 Scharniere","Einliegend 2 Bohrungen und 2 Scharniere","Eckanschlag 3 Bohrungen und 3 Scharniere","Mittelwand 3 Bohrungen und 3 Scharniere","Einliegend 3 Bohrungen und 3 Scharniere","Eckanschlag 4 Bohrungen und 4 Scharniere","Mittelwand 4 Bohrungen und 4 Scharniere","Einliegend 4 Bohrungen und 4 Scharniere","Eckanschlag 5 Bohrungen und 5 Scharniere","Mittelwand 5 Bohrungen und 5 Scharniere","Einliegend 5 Bohrungen und 5 Scharniere"]}],
-LANGUAGE: 'German'
-})
-        """
+    if metadata == "" or not metadata:
+        metadata = {
+            "name": 'Wood Table',
+            "parts": [
+                {"id": 0, "uniqueId": "1588942193773", "name": "platte_thickness", "titel": "Stärke", "value": ["16 mm", "19 mm", "25 mm", "8 mm"]}
+            ],
+            "LANGUAGE": 'German'
+        }
+    else:
+        metadata = json.loads(metadata)
+
 
     print("Received Job Metadata:", metadata)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
@@ -227,13 +251,11 @@ LANGUAGE: 'German'
         #tts=openai.TTS(voice="coral", speed=1.2),
         
     )
-    prompt = ASSISTANT_INSTRUCTIONS + metadata
+    prompt = ASSISTANT_INSTRUCTIONS + json.dumps(metadata, indent = 2 )
     
     print("Final Prompt:", prompt)
-    current_session_instructions = SESSION_INSTRUCTIONS + metadata
-    
+    current_session_instructions = SESSION_INSTRUCTIONS + json.dumps(metadata, indent=2)
     await session.start(
-        
         room=ctx.room,
         agent=ProductConfigurationAssistant(prompt, current_session_instructions, metadata=metadata),
         room_input_options=RoomInputOptions(
@@ -257,25 +279,3 @@ if __name__ == "__main__":
     
     
     
-"""
-
-[
-
-{"id":0,"name":"platte_thickness","titel":"Stärke",
-
-"value":["16 mm","19 mm","25 mm","8 mm"]},
-"features" []},
-
-
-
-{"id":0,"name":"platte_thickness","titel":"Stärke",
-
-"value":["16 mm","19 mm","25 mm","8 mm"]},
-"features" []},
-[{"id":0,"name":"platte_thickness","titel":"Stärke",
-
-"value":["16 mm","19 mm","25 mm","8 mm"]},
-"features" []},
-{"id":0,"name":"platte_thickness","titel":"Stärke"},]
-
-"""
