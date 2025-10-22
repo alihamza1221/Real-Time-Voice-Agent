@@ -22,7 +22,7 @@ SESSION_INSTRUCTIONS = """
 - Each PART inside product has "uniqueId" and "name" to identify it.
 - Your Job is to configure the product each part. 
 - Must use the language given in data below.
-
+- Make sure Always call tools to update configuration and confirm configuration
 -------------------
 # PRODUCT DATA:
 
@@ -34,7 +34,7 @@ ASSISTANT_INSTRUCTIONS = """
 - Don't use any other product or any other options outside of given product.
 - Always configure right options availble and values as it is.
 - Follow the STRUCTURE and keep configuring step by step.
-- Make sure to call tools to update configuration and confirm configuration.
+- Make sure Always call tools to update configuration and confirm configuration.
 ------------------
 # PRODUCT DATA:
  

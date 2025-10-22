@@ -61,7 +61,8 @@ class CollectConsent(AgentTask[bool]):
 
         super().__init__(
             instructions=self.current_instructions,
-            llm=openai.realtime.RealtimeModel(voice="coral", temperature=0.6)
+            llm=openai.realtime.RealtimeModel(voice="coral",
+                                                           temperature=0.6)
         )
 
     async def on_enter(self) -> None:
@@ -83,24 +84,22 @@ class ProductConfigurationAssistant(Agent):
     def __init__(self, prompt: str, current_session_instructions: str, metadata: any) -> None:
         super().__init__(instructions=prompt,
                          llm=openai.realtime.RealtimeModel(voice="coral",
-                                                           temperature=0.))
+                                                           temperature=0.6))
         self.current_session_instructions = current_session_instructions
         self.metadata = metadata
         
     async def on_enter(self) -> None:
-        # user_data: ProductData = self.session.userdata
-        # chat_ctx = self.chat_ctx.copy()
+        # user_data: ProductData = self.session.userdata        
         #self.session._room_io._room.metadata;
-        
-        # if not self.session._room_io or not self.session._room_io._room:
-        #     print("Room IO or Room is not available.")
-        # else:
-            #self.session._room_io._room.on("data_received", self._on_data_received)
+        if not self.session._room_io or not self.session._room_io._room:
+            print("Room IO or Room is not available.")
+        else:
+            self.session._room_io._room.on("data_received", self._on_data_received)
 
         print("1: Will call collect consent now...")
 
         if await CollectConsent(self.metadata):
-            await self.session.generate_reply(instructions=self.current_session_instructions)
+            await self.session.generate_reply(user_input=self.current_session_instructions, instructions="You can now proceed with product configuration as the user has given consent.", tool_choice=self.update_product_configuration,)
             print("session instructions:", self.current_session_instructions)
 
             print("3: Consent granted.")
@@ -120,13 +119,34 @@ class ProductConfigurationAssistant(Agent):
     
     def _on_data_received(self, data):
         # Convert to string and parse JSON if applicable
+        print("_________Data received callback triggered.")
         asyncio.create_task(self.process_incoming_data(data))
 
     async def process_incoming_data(self, data):
         try:
-            message_str = data.decode("utf-8")
-            message_json = json.loads(message_str)
-            print("Received data message:", message_json)
+            payload = data.data if hasattr(data, "data") else data
+
+            print("Processing incoming data:", data )
+            message_str = ""
+            if isinstance(payload, (bytes, bytearray)):
+                message_str = payload.decode("utf-8")
+            elif isinstance(payload, str):
+                message_str = payload
+            else:
+                message_str = str(payload)
+
+            print("Decoded message string:", message_str)
+
+            message = "Important! From Now on, respond to the user with updated configuration only. If part is already configured continue configuration based on updated options available. If some options are removed not choosen before just ignore and foucs in remaining options else mark as completed." + message_str
+
+            chat_ctx = self.chat_ctx.copy()
+            chat_ctx.add_message(role="system", content=message)
+            
+            await self.update_chat_ctx(chat_ctx)
+            
+            updated_instructions = ASSISTANT_INSTRUCTIONS + message_str
+            await self.update_instructions(updated_instructions)
+
         except Exception as e:
             print("Failed to decode/process incoming data:", e)
             return
@@ -227,7 +247,7 @@ async def entrypoint(ctx: JobContext):
             "parts": [
                 {"id": 0, "uniqueId": "1588942193773", "name": "platte_thickness", "titel": "Stärke", "value": ["16 mm", "19 mm", "25 mm", "8 mm"]}
             ],
-            "LANGUAGE": 'German'
+            "LANGUAGE": 'English'
         }
     else:
         metadata = json.loads(metadata)
@@ -243,6 +263,8 @@ async def entrypoint(ctx: JobContext):
         userdata=productData,
         vad=ctx.proc.userdata["vad"],
         allow_interruptions=True,
+        preemptive_generation=True,
+
         #stt=deepgram.STT(
         #    smart_format=True
         #),
