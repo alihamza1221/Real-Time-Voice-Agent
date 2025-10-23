@@ -56,6 +56,12 @@
           <span v-if="connected">✅ Connected</span>
         </button>
         <button 
+          class="btn btn-interrupt" 
+          :disabled="!connected" 
+          @click="interruptAgent">
+          ⚠️ Interrupt
+        </button>
+        <button 
           class="btn btn-secondary" 
           :disabled="!connected" 
           @click="endSession">
@@ -81,7 +87,23 @@ const product = ref(
 {
 name: 'Wood Table',
 parts: [
-  {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Stärke","value":["16 mm","19 mm","25 mm","8 mm"]},{"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Maserungsrichtung ","value":["Vertikal","Horizontal"]},{"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Seitenauswahl der Kanten :","value":["oben","rechts","unten","links"]},{"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Kantenbearbeitung:","value":["Ohne","Weiß Hochglanz","Schwarz Hochglanz","Ahorn Natur","Alu Geschliffen","Anthrazit","Atollblau","Beige","Beton dunkel","Beton hell","Eiche Salzburg","Eierschale","Esche Taormina Vogue","Grau","Hellgrau","Kernapfel","Kirsche Acco","Limone","Lipstick","Murnau Ahorn","Niagara Eiche hell","Nussbaum","Onyx","Rose","Samerbergbuche","Schiefer","Schwarz","Seablue","Silber","Sonoma Eiche","Taubenblau","Türkis","Walnuss Venedig","Weiss","Wenge Classic","Marmor Weiss","Marmor Dunkel Grau","Marmor Hell Grau","Swiss Elm Kalt","Aloe Green","Dive Blue","Efeu","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Marineblau","Olive","Pistazien Grün","Astfichte","Cappuccino","Cashmere","Coco Tweed Creme","Fichte Weiß","Frontweiss","MellowPine White","Stonetex Black"]},{"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Steckdosenbohrungen","value":["Keine","Eine","Zwei","Drei","Vier","Fünf"]},{"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Lochreihen für Regalbretter","value":["Keine","lange Seite - 2 Reihen für Regalbretter - pro Platte","kurze Seite - 2 Reihen für Regalbretter - pro Platte"]},{"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Scharniere inkl. Bohrung","value":["Keine","Eckanschlag 2 Bohrungen und 2 Scharniere","Mittelwand 2 Bohrungen und 2 Scharniere","Einliegend 2 Bohrungen und 2 Scharniere","Eckanschlag 3 Bohrungen und 3 Scharniere","Mittelwand 3 Bohrungen und 3 Scharniere","Einliegend 3 Bohrungen und 3 Scharniere","Eckanschlag 4 Bohrungen und 4 Scharniere","Mittelwand 4 Bohrungen und 4 Scharniere","Einliegend 4 Bohrungen und 4 Scharniere","Eckanschlag 5 Bohrungen und 5 Scharniere","Mittelwand 5 Bohrungen und 5 Scharniere","Einliegend 5 Bohrungen und 5 Scharniere"]}],
+  {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Stärke","value":["16 mm","19 mm","25 mm","8 mm"]},
+  
+  {"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Maserungsrichtung ","value":["Vertikal","Horizontal"]},
+  
+  {"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Seitenauswahl der Kanten :","value":["oben","rechts","unten","links"]},
+  
+  {"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Kantenbearbeitung:","value":["Ohne","Weiß Hochglanz","Schwarz Hochglanz","Ahorn Natur","Alu Geschliffen","Anthrazit","Atollblau","Beige","Beton dunkel","Beton hell","Eiche Salzburg","Eierschale","Esche Taormina Vogue","Grau","Hellgrau","Kernapfel","Kirsche Acco","Limone","Lipstick","Murnau Ahorn","Niagara Eiche hell","Nussbaum","Onyx","Rose","Samerbergbuche","Schiefer","Schwarz","Seablue","Silber","Sonoma Eiche","Taubenblau","Türkis","Walnuss Venedig","Weiss","Wenge Classic","Marmor Weiss","Marmor Dunkel Grau","Marmor Hell Grau","Swiss Elm Kalt","Aloe Green","Dive Blue","Efeu","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Marineblau","Olive","Pistazien Grün","Astfichte","Cappuccino","Cashmere","Coco Tweed Creme","Fichte Weiß","Frontweiss","MellowPine White","Stonetex Black"]},
+  
+  
+  {"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Steckdosenbohrungen",
+  "value":["Keine","Eine","Zwei","Drei","Vier","Fünf"]},
+  
+  {"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Lochreihen für Regalbretter",
+  "value":["Keine","lange Seite - 2 Reihen für Regalbretter - pro Platte","kurze Seite - 2 Reihen für Regalbretter - pro Platte"]},
+  
+  {"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Scharniere inkl. Bohrung",
+  "value":["Keine","Eckanschlag 2 Bohrungen und 2 Scharniere","Mittelwand 2 Bohrungen und 2 Scharniere","Einliegend 2 Bohrungen und 2 Scharniere","Eckanschlag 3 Bohrungen und 3 Scharniere","Mittelwand 3 Bohrungen und 3 Scharniere","Einliegend 3 Bohrungen und 3 Scharniere","Eckanschlag 4 Bohrungen und 4 Scharniere","Mittelwand 4 Bohrungen und 4 Scharniere","Einliegend 4 Bohrungen und 4 Scharniere","Eckanschlag 5 Bohrungen und 5 Scharniere","Mittelwand 5 Bohrungen und 5 Scharniere","Einliegend 5 Bohrungen und 5 Scharniere"]}],
 LANGUAGE: 'Egnlish'
 }
 )
@@ -169,10 +191,39 @@ async function startVoiceAgent () {
     const r = new Room()
     room.value = r
 
-r.on(RoomEvent.DataReceived, (payload, participant, topic) => {
+
+    
+r.on(RoomEvent.DataReceived, async(payload, participant, topic) => {
   console.log('____DataReceived event triggered____');
   try {
     console.log('DataReceived raw', { topic, payload, participant })  
+
+
+
+    const newConfig = {
+      parts: [{
+      "id": 6,
+      "uniqueId": "1709232830865",
+      "name": "hinges_drill_hole", 
+      "titel": "Hinges including Drilling",
+      "value": [
+        "Corner stop 2 drillings and 2 hinges",
+        "Center wall 2 drillings and 2 hinges",
+        "Inset 2 drillings and 2 hinges",
+        "Corner stop 3 drillings and 3 hinges",
+        "Inset 5 drillings and 5 hinges"
+      ]
+    }]
+  }
+
+    // This function will be called when we configurtion update is needed. 
+    console.log("_________Publishing payload:", payload)
+    await r.localParticipant.publishData(
+      new TextEncoder().encode(JSON.stringify(newConfig)),
+      { reliable: true, topic: "config" }
+    )
+
+
     const msg = JSON.parse(new TextDecoder().decode(payload))
     console.log('DataReceived parsed', { topic, msg })
     
@@ -202,7 +253,7 @@ r.on(RoomEvent.DataReceived, (payload, participant, topic) => {
   }
 })
 
-    r.on(RoomEvent.ParticipantConnected, (p) => {
+  r.on(RoomEvent.ParticipantConnected, (p) => {
   console.log('remote joined', p.identity)
 })
 r.on(RoomEvent.ParticipantDisconnected, (p) => {
@@ -305,6 +356,25 @@ async function endSession () {
     connected.value = false
     room.value = null
     status.value = 'Disconnected'
+  }
+}
+
+async function interruptAgent() {
+  if (!room.value || !connected.value) {
+    status.value = 'Error: Not connected to room'
+    return
+  }
+
+  try {
+    const text = 'Hello how are you today?';
+    const info = await room.value.localParticipant.sendText(text, {
+      topic: 'lk.chat',
+    });
+    status.value = `Sent interrupt message: "${text}"`
+    console.log('Interrupt message sent:', info)
+  } catch (error) {
+    status.value = `Failed to send interrupt: ${error.message}`
+    console.error('Error sending interrupt:', error)
   }
 }
 </script>
@@ -539,6 +609,16 @@ async function endSession () {
 
 .btn-secondary:hover:not(:disabled) {
   background: #4a5568;
+  transform: translateY(-2px);
+}
+
+.btn-interrupt {
+  background: #ed8936;
+  color: white;
+}
+
+.btn-interrupt:hover:not(:disabled) {
+  background: #dd6b20;
   transform: translateY(-2px);
 }
 

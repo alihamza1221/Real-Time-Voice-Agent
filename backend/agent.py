@@ -66,7 +66,7 @@ class CollectConsent(AgentTask[bool]):
         )
 
     async def on_enter(self) -> None:
-        print("2: Collecting consent...")
+        print("STEP 2: _________Collecting consent_________")
         await self.session.generate_reply(instructions=self.current_instructions)
 
     @function_tool
@@ -89,33 +89,27 @@ class ProductConfigurationAssistant(Agent):
         self.metadata = metadata
         
     async def on_enter(self) -> None:
-        # user_data: ProductData = self.session.userdata        
-        #self.session._room_io._room.metadata;
         if not self.session._room_io or not self.session._room_io._room:
             print("Room IO or Room is not available.")
         else:
             self.session._room_io._room.on("data_received", self._on_data_received)
 
-        print("1: Will call collect consent now...")
+        print("STEP 1: _________Will call collect consent now_________")
 
         if await CollectConsent(self.metadata):
             await self.session.generate_reply(user_input=self.current_session_instructions, instructions="You can now proceed with product configuration as the user has given consent.", tool_choice=self.update_product_configuration,)
-            print("session instructions:", self.current_session_instructions)
 
-            print("3: Consent granted.")
+            print("STEP 3: _________Consent granted_________")
         else:
-            print("3: Consent denied. Ending session.")
+            print("STEP 3: _________Consent denied. Ending session.")
             await self.session.generate_reply(instructions="Inform the user that you are unable to proceed and will end the call.")
             job_ctx = get_job_context()
 
             try:
-                print("last : Deleting room:", job_ctx.room.name)
+                print("LAST : _________Deleting room:", job_ctx.room.name)
                 await job_ctx.api.room.delete_room(api.DeleteRoomRequest(room=job_ctx.room.name))
             except Exception as e:
                 print("Error deleting room:", e)
-    # async def on_user_turn_completed(self, chat_ctx, new_message):
-    #     if new_message.text_content:
-    #         print(f"User Transcript: {new_message.text_content}")
     
     def _on_data_received(self, data):
         # Convert to string and parse JSON if applicable
@@ -126,7 +120,6 @@ class ProductConfigurationAssistant(Agent):
         try:
             payload = data.data if hasattr(data, "data") else data
 
-            print("Processing incoming data:", data )
             message_str = ""
             if isinstance(payload, (bytes, bytearray)):
                 message_str = payload.decode("utf-8")
@@ -135,10 +128,19 @@ class ProductConfigurationAssistant(Agent):
             else:
                 message_str = str(payload)
 
-            print("Decoded message string:", message_str)
+            message = """
+            
+            - Important! From Now on, respond with updated configuration only. 
+            - If part is already configured continue configuration what's left in updated config. 
+            - If some options are removed just ignore and focus in remaining options.
+            ____________________________
 
-            message = "Important! From Now on, respond to the user with updated configuration only. If part is already configured continue configuration based on updated options available. If some options are removed not choosen before just ignore and foucs in remaining options else mark as completed." + message_str
-
+            UPDATED CONFIGURATION DATA:
+            ____________________________
+            
+            """ + message_str
+            
+            print("_______UPDATED CONFIG DATA_____\n", message)
             chat_ctx = self.chat_ctx.copy()
             chat_ctx.add_message(role="system", content=message)
             
@@ -146,7 +148,7 @@ class ProductConfigurationAssistant(Agent):
             
             updated_instructions = ASSISTANT_INSTRUCTIONS + message_str
             await self.update_instructions(updated_instructions)
-
+            await self.session.generate_reply(user_input=message_str, instructions=updated_instructions, tool_choice=self.update_product_configuration)
         except Exception as e:
             print("Failed to decode/process incoming data:", e)
             return
@@ -173,8 +175,6 @@ class ProductConfigurationAssistant(Agent):
                 "items_configured": items_configured.model_dump(),
             }
             
-            print("_________Publishing payload:", payload)
-            # publish as reliable data with a topic to make filtering easy
             await context.session._room_io._room.local_participant.publish_data(
                 json.dumps(payload).encode("utf-8"),
                 reliable=True,
@@ -190,8 +190,7 @@ class ProductConfigurationAssistant(Agent):
     async def confirm_configuration(self, context: RunContext_T) -> str | tuple[Agent, str]:
         """Called when the user confirms the product configuration. or end the configuration."""
         userdata = context.userdata
-        # if not userdata.product:
-        #     return "No product configuration found. Please configure your product first."
+      
         print("_______Found Config: " , userdata.product)
         try:
             payload = {
@@ -212,7 +211,7 @@ class ProductConfigurationAssistant(Agent):
         """Called when the user wants to close the voice mode at any point or say close or stop."""
         userdata = context.userdata
         
-        print(userdata.product)
+        #print(userdata.product)
         try:
             payload = {
                 "type": "config:close_voice_mode",
@@ -228,7 +227,7 @@ class ProductConfigurationAssistant(Agent):
             job_ctx = get_job_context()
 
             try:
-                print("last : Deleting room:", job_ctx.room.name)
+                print("LAST : _________Deleting room:", job_ctx.room.name)
                 await job_ctx.api.room.delete_room(api.DeleteRoomRequest(room=job_ctx.room.name))
             except Exception as e:
                 print("Error deleting room:", e)
@@ -241,19 +240,10 @@ class ProductConfigurationAssistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
-    if metadata == "" or not metadata:
-        metadata = {
-            "name": 'Wood Table',
-            "parts": [
-                {"id": 0, "uniqueId": "1588942193773", "name": "platte_thickness", "titel": "Stärke", "value": ["16 mm", "19 mm", "25 mm", "8 mm"]}
-            ],
-            "LANGUAGE": 'English'
-        }
-    else:
-        metadata = json.loads(metadata)
+   
+    metadata = json.loads(metadata)
 
-
-    print("Received Job Metadata:", metadata)
+    #print("Received Job Metadata:", metadata)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     await ctx.wait_for_participant()
 
@@ -275,7 +265,6 @@ async def entrypoint(ctx: JobContext):
     )
     prompt = ASSISTANT_INSTRUCTIONS + json.dumps(metadata, indent = 2 )
     
-    print("Final Prompt:", prompt)
     current_session_instructions = SESSION_INSTRUCTIONS + json.dumps(metadata, indent=2)
     await session.start(
         room=ctx.room,
@@ -291,7 +280,6 @@ async def entrypoint(ctx: JobContext):
         # ),
     )
     
-
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
