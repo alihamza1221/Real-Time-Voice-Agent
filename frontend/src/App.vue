@@ -87,24 +87,24 @@ const product = ref(
 {
 name: 'Wood Table',
 parts: [
-  {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Stärke","value":["16 mm","19 mm","25 mm","8 mm"]},
+  {"id":0,"uniqueId":"1588942193773","name":"platte_thickness","titel":"Thickness","value":["16 mm","19 mm","25 mm","8 mm"]},
   
-  {"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Maserungsrichtung ","value":["Vertikal","Horizontal"]},
+  {"id":1,"uniqueId":"1614246937544","name":"texture_direction","titel":"Grain Direction","value":["Vertical","Horizontal"]},
   
-  {"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Seitenauswahl der Kanten :","value":["oben","rechts","unten","links"]},
+  {"id":2,"uniqueId":"1709586217030","name":"sideschoice_of_edges1","titel":"Edge Side Selection:","value":["Top","Right","Bottom","Left"]},
   
-  {"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Kantenbearbeitung:","value":["Ohne","Weiß Hochglanz","Schwarz Hochglanz","Ahorn Natur","Alu Geschliffen","Anthrazit","Atollblau","Beige","Beton dunkel","Beton hell","Eiche Salzburg","Eierschale","Esche Taormina Vogue","Grau","Hellgrau","Kernapfel","Kirsche Acco","Limone","Lipstick","Murnau Ahorn","Niagara Eiche hell","Nussbaum","Onyx","Rose","Samerbergbuche","Schiefer","Schwarz","Seablue","Silber","Sonoma Eiche","Taubenblau","Türkis","Walnuss Venedig","Weiss","Wenge Classic","Marmor Weiss","Marmor Dunkel Grau","Marmor Hell Grau","Swiss Elm Kalt","Aloe Green","Dive Blue","Efeu","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Marineblau","Olive","Pistazien Grün","Astfichte","Cappuccino","Cashmere","Coco Tweed Creme","Fichte Weiß","Frontweiss","MellowPine White","Stonetex Black"]},
+  {"id":3,"uniqueId":"1709635825282","name":"edge_processing1","titel":"Edge Processing:","value":["None","White High Gloss","Black High Gloss","Maple Natural","Alu Brushed","Anthracite","Atoll Blue","Beige","Concrete Dark","Concrete Light","Oak Salzburg","Eggshell","Ash Taormina Vogue","Gray","Light Gray","Core Apple","Cherry Acco","Lime","Lipstick","Murnau Maple","Niagara Oak Light","Walnut","Onyx","Rose","Samerberg Beech","Slate","Black","Sea Blue","Silver","Sonoma Oak","Dove Blue","Turquoise","Walnut Venice","White","Wenge Classic","Marble White","Marble Dark Gray","Marble Light Gray","Swiss Elm Cold","Aloe Green","Dive Blue","Ivy","Eternal Oak","Jaffa Orange","Lamella Cream","Lamella Terra","Navy Blue","Olive","Pistachio Green","Knotty Spruce","Cappuccino","Cashmere","Coco Tweed Cream","Spruce White","Front White","Mellow Pine White","Stonetex Black"]},
   
   
-  {"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Steckdosenbohrungen",
-  "value":["Keine","Eine","Zwei","Drei","Vier","Fünf"]},
+  {"id":4,"uniqueId":"1709232334992","name":"st_amount_socket","titel":"Socket Drillings",
+  "value":["None","One","Two","Three","Four","Five"]},
   
-  {"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Lochreihen für Regalbretter",
-  "value":["Keine","lange Seite - 2 Reihen für Regalbretter - pro Platte","kurze Seite - 2 Reihen für Regalbretter - pro Platte"]},
+  {"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Rows of Holes for Shelves",
+  "value":["None","Long side - 2 rows for shelves - per board","Short side - 2 rows for shelves - per board"]},
   
-  {"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Scharniere inkl. Bohrung",
-  "value":["Keine","Eckanschlag 2 Bohrungen und 2 Scharniere","Mittelwand 2 Bohrungen und 2 Scharniere","Einliegend 2 Bohrungen und 2 Scharniere","Eckanschlag 3 Bohrungen und 3 Scharniere","Mittelwand 3 Bohrungen und 3 Scharniere","Einliegend 3 Bohrungen und 3 Scharniere","Eckanschlag 4 Bohrungen und 4 Scharniere","Mittelwand 4 Bohrungen und 4 Scharniere","Einliegend 4 Bohrungen und 4 Scharniere","Eckanschlag 5 Bohrungen und 5 Scharniere","Mittelwand 5 Bohrungen und 5 Scharniere","Einliegend 5 Bohrungen und 5 Scharniere"]}],
-LANGUAGE: 'Egnlish'
+  {"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Hinges including Drilling",
+  "value":["None","Corner stop 2 drillings and 2 hinges","Center wall 2 drillings and 2 hinges","Inset 2 drillings and 2 hinges","Corner stop 3 drillings and 3 hinges","Center wall 3 drillings and 3 hinges","Inset 3 drillings and 3 hinges","Corner stop 4 drillings and 4 hinges","Center wall 4 drillings and 4 hinges","Inset 4 drillings and 4 hinges","Corner stop 5 drillings and 5 hinges","Center wall 5 drillings and 5 hinges","Inset 5 drillings and 5 hinges"]}],
+LANGUAGE: 'English'
 }
 )
 
@@ -196,38 +196,44 @@ async function startVoiceAgent () {
 r.on(RoomEvent.DataReceived, async(payload, participant, topic) => {
   console.log('____DataReceived event triggered____');
   try {
-    console.log('DataReceived raw', { topic, payload, participant })  
+    //console.log('DataReceived raw', { topic, payload, participant })  
 
 
 
     const newConfig = {
-      parts: [{
+    parts: [
+    {"id":5,"uniqueId":"1709232556743","name":"rows_of_holes_for_shelves","titel":"Rows of Holes for Shelves",
+    "value":["None","Short side - 2 rows for shelves - per board"]},
+    {
       "id": 6,
       "uniqueId": "1709232830865",
       "name": "hinges_drill_hole", 
       "titel": "Hinges including Drilling",
-      "value": [
+      "value":
+       [
         "Corner stop 2 drillings and 2 hinges",
         "Center wall 2 drillings and 2 hinges",
-        "Inset 2 drillings and 2 hinges",
-        "Corner stop 3 drillings and 3 hinges",
-        "Inset 5 drillings and 5 hinges"
       ]
-    }]
+    },
+    
+    ],    LANGUAGE: "English"
+
   }
 
     // This function will be called when we configurtion update is needed. 
-    console.log("_________Publishing payload:", payload)
-    await r.localParticipant.publishData(
-      new TextEncoder().encode(JSON.stringify(newConfig)),
-      { reliable: true, topic: "config" }
-    )
+    
 
 
     const msg = JSON.parse(new TextDecoder().decode(payload))
     console.log('DataReceived parsed', { topic, msg })
     
     if (msg?.type === 'config:update') {
+
+    console.log("_________Publishing payload________", payload)
+    await r.localParticipant.publishData(
+      new TextEncoder().encode(JSON.stringify(newConfig)),
+      { reliable: true, topic: "config" }
+    )
       const next = { ...selected.value }
       
       // Handle both single object and array formats
@@ -254,8 +260,8 @@ r.on(RoomEvent.DataReceived, async(payload, participant, topic) => {
 })
 
   r.on(RoomEvent.ParticipantConnected, (p) => {
-  console.log('remote joined', p.identity)
-})
+  //console.log('remote joined', p.identity)
+ })
 r.on(RoomEvent.ParticipantDisconnected, (p) => {
   console.log('remote left', p.identity)
 })
@@ -289,7 +295,7 @@ console.log("remote participants : ", room.value.remoteParticipants);
     })
 
     if (!r.canPlayAudio) {
-  console.log("started audio")
+  //console.log("started audio")
 }
 r.on(RoomEvent.AudioPlaybackStatusChanged, () => {
   if (!r.canPlayAudio) {
