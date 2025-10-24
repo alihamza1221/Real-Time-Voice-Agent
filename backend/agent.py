@@ -1,7 +1,6 @@
 import asyncio
 import json
 from dotenv import load_dotenv
-from importlib_metadata import metadata
 from livekit.agents import (
     AgentSession,
     Agent,
@@ -61,8 +60,7 @@ class CollectConsent(AgentTask[bool]):
 
         super().__init__(
             instructions=self.current_instructions,
-            llm=openai.realtime.RealtimeModel(voice="coral",
-                                                           temperature=0.6)
+            llm=openai.LLM(model="gpt-4.1-mini", temperature=0.6)
         )
 
     async def on_enter(self) -> None:
@@ -82,11 +80,11 @@ class CollectConsent(AgentTask[bool]):
 
 class ProductConfigurationAssistant(Agent): 
     def __init__(self, prompt: str, current_session_instructions: str, metadata: any) -> None:
-        super().__init__(instructions=prompt,
-                         llm=openai.realtime.RealtimeModel(voice="coral",
-                                                           temperature=0.6))
+        super().__init__(instructions=current_session_instructions,
+                         llm=openai.LLM(model="gpt-4.1-mini", temperature=0.6))
         self.current_session_instructions = current_session_instructions
         self.metadata = metadata
+        self.prompt = prompt
         
     async def on_enter(self) -> None:
         if not self.session._room_io or not self.session._room_io._room:
@@ -97,9 +95,10 @@ class ProductConfigurationAssistant(Agent):
         print("STEP 1: _________Will call collect consent now_________")
 
         if await CollectConsent(self.metadata):
-            await self.session.generate_reply(user_input=self.current_session_instructions, instructions="You can now proceed with product configuration as the user has given consent.", tool_choice=self.update_product_configuration,)
-
             print("STEP 3: _________Consent granted_________")
+
+            await self.session.generate_reply(user_input=self.prompt, instructions=self.current_session_instructions, tool_choice=self.update_product_configuration)
+
         else:
             print("STEP 3: _________Consent denied. Ending session.")
             await self.session.generate_reply(instructions="Inform the user that you are unable to proceed and will end the call.")
@@ -130,22 +129,22 @@ class ProductConfigurationAssistant(Agent):
 
             message = """
             
-            - Important! From Now on, respond with updated configuration only. 
-            - If part is already configured continue configuration what's left in updated config. 
+            - Important! Due to previous selections the availble options are updated. 
+            - Continue configure  for remaining parts with updated options. 
             - If some options are removed just ignore and focus in remaining options.
-            ____________________________
+            - If part is already configured skip to next parts.
 
-            UPDATED CONFIGURATION DATA:
-            ____________________________
+            CONFIGURATION DATA with updated options:
+           
             
             """ + message_str
             
-            print("_______UPDATED CONFIG DATA_____\n", message)
+            # print("_______UPDATED CONFIG DATA_____\n", message)
             chat_ctx = self.chat_ctx.copy()
             chat_ctx.add_message(role="system", content=message)
             
             await self.update_chat_ctx(chat_ctx)
-            
+            print("Will update instructions with new config data.")
             updated_instructions = ASSISTANT_INSTRUCTIONS + message_str
             await self.update_instructions(updated_instructions)
             await self.session.generate_reply(user_input=message_str, instructions=updated_instructions, tool_choice=self.update_product_configuration)
@@ -162,7 +161,7 @@ class ProductConfigurationAssistant(Agent):
         items_configured: Annotated[ConfiguredPart, pydantic.Field(description="The specific part being configured. Must include uniqueId, name, and the selected value.")],
         context: RunContext_T,
     ) -> str:
-        """Will be called each time the update happens in any part of product configuration. Called on each part configuration."""
+        """Will be called each time the update happens in any part of product configuration. Called on any part configuration is being updated. """
         userdata = context.userdata
         if not userdata.product.get("selected_options"):
             userdata.product["selected_options"] = []
@@ -242,7 +241,7 @@ async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
    
     metadata = json.loads(metadata)
-
+    print("lang ", metadata.get("language", "en"))
     #print("Received Job Metadata:", metadata)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     await ctx.wait_for_participant()
@@ -255,12 +254,10 @@ async def entrypoint(ctx: JobContext):
         allow_interruptions=True,
         preemptive_generation=True,
 
-        #stt=deepgram.STT(
-        #    smart_format=True
-        #),
+        stt=openai.STT(model="whisper-1", language=metadata.get("language", "en")),
         #turn_detection=MultilingualModel(),
         #turn_detection="vad",
-        #tts=openai.TTS(voice="coral", speed=1.2),
+        tts=openai.TTS(voice="coral", speed=1.1),
         
     )
     prompt = ASSISTANT_INSTRUCTIONS + json.dumps(metadata, indent = 2 )

@@ -29,13 +29,16 @@ _______________
 ASSISTANT_INSTRUCTIONS = """
 # context:
 - {PRODUCT} and {LANGUAGE} Data is Provided.
-- If product langugate is different translate when speaking but update the configuration values as in original data.
+- If product language is different translate when speaking but update the configuration values as in original data.
 - Don't use any product or any options outside of available data.
-- Always configure options available and values as it is.
-- Follow the STRUCTURE and keep configuring step by step.
+- Follow the STRUCTURE and keep configuring step by step if value is in different language speach whilest translting from orginal value.
 - Make sure Always call tools to update configuration and confirm configuration.
 _______________
 # PRODUCT DATA:
  
 
 """
+
+
+def create_assistent_prompt():
+   pass
