@@ -104,7 +104,7 @@ parts: [
   
   {"id":6,"uniqueId":"1709232830865","name":"hinges_drill_hole","titel":"Hinges including Drilling",
   "value":["None","Corner stop 2 drillings and 2 hinges","Center wall 2 drillings and 2 hinges","Inset 2 drillings and 2 hinges","Corner stop 3 drillings and 3 hinges","Center wall 3 drillings and 3 hinges","Inset 3 drillings and 3 hinges","Corner stop 4 drillings and 4 hinges","Center wall 4 drillings and 4 hinges","Inset 4 drillings and 4 hinges","Corner stop 5 drillings and 5 hinges","Center wall 5 drillings and 5 hinges","Inset 5 drillings and 5 hinges"]}],
-LANGUAGE: 'English'
+LANGUAGE: 'en'
 }
 )
 
@@ -216,7 +216,7 @@ r.on(RoomEvent.DataReceived, async(payload, participant, topic) => {
       ]
     },
     
-    ],    LANGUAGE: "English"
+    ],    LANGUAGE: "en"
 
   }
 
