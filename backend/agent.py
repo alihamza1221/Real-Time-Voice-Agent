@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from dotenv import load_dotenv
 from livekit.agents import (
     AgentSession,
@@ -60,7 +61,7 @@ class CollectConsent(AgentTask[bool]):
 
         super().__init__(
             instructions=self.current_instructions,
-            llm=openai.LLM(model="gpt-4.1-mini", temperature=0.6)
+            llm=openai.LLM(model=os.getenv("OPENAI_LLM", "gpt-4.1-mini"))
         )
 
     async def on_enter(self) -> None:
@@ -81,7 +82,7 @@ class CollectConsent(AgentTask[bool]):
 class ProductConfigurationAssistant(Agent): 
     def __init__(self, prompt: str, current_session_instructions: str, metadata: any) -> None:
         super().__init__(instructions=current_session_instructions,
-                         llm=openai.LLM(model="gpt-4.1-mini", temperature=0.6))
+                         llm=openai.LLM(model=os.getenv("OPENAI_LLM", "gpt-4.1-mini")))
         self.current_session_instructions = current_session_instructions
         self.metadata = metadata
         self.prompt = prompt
@@ -161,7 +162,7 @@ class ProductConfigurationAssistant(Agent):
         items_configured: Annotated[ConfiguredPart, pydantic.Field(description="The specific part being configured. Must include uniqueId, name, and the selected value.")],
         context: RunContext_T,
     ) -> str:
-        """Will be called each time the update happens in any part of product configuration. Called on any part configuration is being updated. """
+        """Will be called when the update happens in any part of product configuration. If given configuration opetions are being selected."""
         userdata = context.userdata
         if not userdata.product.get("selected_options"):
             userdata.product["selected_options"] = []
@@ -239,7 +240,8 @@ class ProductConfigurationAssistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     metadata = ctx.job.metadata
-   
+    if metadata is None or metadata.strip() == "":
+        metadata = "{}"
     metadata = json.loads(metadata)
     print("lang ", metadata.get("language", "en"))
     #print("Received Job Metadata:", metadata)
@@ -254,7 +256,11 @@ async def entrypoint(ctx: JobContext):
         allow_interruptions=True,
         preemptive_generation=True,
 
-        stt=openai.STT(model="whisper-1", language=metadata.get("language", "en")),
+        stt=openai.STT(model=os.getenv("OPENAI_SST_MODEL","whisper-1"), language=metadata.get("language", "de")),
+        
+        # realtime models 
+        # start speach listen stream 
+        # but other simple models they first get the speach and then convert to text
         #turn_detection=MultilingualModel(),
         #turn_detection="vad",
         tts=openai.TTS(voice="coral", speed=1.1),
